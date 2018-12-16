@@ -73,6 +73,27 @@
 (->> areas
      (filter (fn [[id _]] (nil? (infinite id)))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PART 2
+(def distances (int-array size -1)) ;; -1 means empty
+
+;; For each field find the nearest point and
+;; write its id
+(doseq
+  [x (range row-size)
+   y (range row-size)]
+  (let [target {:x x :y y}
+        sorted (sort-points-by-distance target points manhattan-distance)
+        sum (apply + (map :dist sorted))
+        index (+ x (* y row-size))]
+    (aset-int distances index sum)))
+
+;; Count the fields that have distance less than 10000
+(->> distances
+     (filter #(< % 10000))
+     count)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Quil stuff
 
