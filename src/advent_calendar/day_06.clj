@@ -1,21 +1,77 @@
 (ns advent-calendar.day-06
     (:require [clojure.string :as s]
               [quil.core :as q]
+              [clojure.set :refer [union]]
               ))
 
-(def input (advent-calendar.core/read-data "day6.txt"))
-
-(->> input
-     read-points
-     )
 
 (defn read-points [input]
-  (->> input
-       (map #(s/split % #"\s*,\s*"))
-       (map #(map read-string %))
-       (map #(zipmap [:x :y] %))
+  (as-> input _
+       (map #(s/split % #"\s*,\s*") _)
+       (map #(map read-string %) _)
+       (map #(zipmap [:x :y] %) _)
+       (map vector (take (count _) (iterate inc 1)) _)
+       (map (fn [[id point]]
+                (assoc point :id id)) _)
        )
   )
+
+;; Read points, and generate them IDs
+(as-> (advent-calendar.core/read-data "day6.txt") _
+      (read-points _)
+      (def points _)
+      )
+
+;; Prepare the fields (size determined by looking at input data)
+(def row-size 400)
+(def size (* row-size row-size))
+(def data (int-array size -1)) ;; -1 means empty, 0 means more than one ID
+
+;; For each field find the nearest point and
+;; write its id
+(doseq
+  [x (range row-size)
+   y (range row-size)]
+  (let [target {:x x :y y}
+        sorted (sort-points-by-distance target points manhattan-distance)
+        nearest (first sorted)
+        second-nearest (second sorted)
+        mark (if (= (:dist nearest) (:dist second-nearest))
+               0
+               (:id nearest))
+        index (+ x (* y row-size))]
+    (aset-int data index mark)))
+
+(defn sort-points-by-distance [target points dist-f]
+  (->> points
+       (map #(assoc %1 :dist (dist-f target %1)))
+       (sort-by :dist)))
+
+(defn manhattan-distance [{px :x py :y} {qx :x qy :y}]
+  (+ (Math/abs (- px qx))
+     (Math/abs (- py qy))))
+
+
+;; Count frequencies for all points (field area)
+(def areas (sort-by second (frequencies data)))
+
+;; Determine which point id's are on the edges - those are infinite
+;; and should be ignored
+(def infinite (union
+                (set (take row-size data))
+                (set (take row-size (drop (* (- row-size 1) row-size) data)))
+                (apply union (for [row (range row-size)]
+                          (let [left-edge (+ 0 (* row row-size))
+                                right-edge (+ row-size -1 (* row row-size))]
+                            #{(aget data left-edge)
+                              (aget data right-edge)})
+                          ))
+                ))
+
+
+;; Filter areas to only show "not-infinite"
+(->> areas
+     (filter (fn [[id _]] (nil? (infinite id)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Quil stuff
